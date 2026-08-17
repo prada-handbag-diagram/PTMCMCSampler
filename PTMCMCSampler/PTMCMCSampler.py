@@ -1,6 +1,7 @@
 import os
 import sys
 import time
+
 import numpy as np
 
 from .nutsjump import HMCJump, MALAJump, NUTSJump
@@ -129,9 +130,7 @@ class PTSampler(object):
         if self.modelswitch:
             # This code assumes exactly two models
             if len(logl) != 2 or len(logp) != 2:
-                raise ValueError(
-                    "For model-switching, logl and logp must be tuples of length 2."
-                )
+                raise ValueError("For model-switching, logl and logp must be tuples of length 2.")
 
             # Tuple index 0 is treated as model 1, and tuple index 1 is treated as model 2
             self.logl1 = _function_wrapper(logl[0], loglargs, loglkwargs)
@@ -216,7 +215,7 @@ class PTSampler(object):
         hotChain=False,
         betaSchedule=None,
         holdIter=0,
-        nameChainTemps=False
+        nameChainTemps=False,
     ):
         """
         Initialize MCMC quantities
@@ -269,7 +268,8 @@ class PTSampler(object):
         if holdIter < 0:
             raise ValueError("holdIter must be >= 0")
 
-        # A beta schedule is a single-chain model-switch mode, so reject incompatible options before building the schedule
+        # A beta schedule is a single-chain model-switch mode, so reject
+        # incompatible options before building the schedule
         if self.betaSchedule is not None:
             if not self.modelswitch:
                 raise ValueError("betaSchedule is only supported for model-switching runs")
@@ -278,27 +278,25 @@ class PTSampler(object):
             if ladder is not None:
                 raise ValueError("betaSchedule is not compatible with ladder being set")
             if self.nchain > 1:
-                raise ValueError(
-                    f"betaSchedule is only supported for single-chain runs, but MPI size is {self.nchain}"
-                )
-    
+                raise ValueError(f"betaSchedule is only supported for single-chain runs, but MPI size is {self.nchain}")
+
             # Prepend a beta=0 flat section before the user schedule when an initial hold is requested
             self.betaSchedule = np.concatenate(
                 [np.zeros(int(holdIter), dtype=float), np.asarray(self.betaSchedule, dtype=float)]
             )
-    
+
             if self.betaSchedule.size < 2:
                 raise ValueError("betaSchedule must contain at least two states")
-                
+
             if (
                 not np.all(np.isfinite(self.betaSchedule))
                 or np.min(self.betaSchedule) < 0.0
                 or np.max(self.betaSchedule) > 1.0
             ):
                 raise ValueError("betaSchedule values must be finite and lie in [0, 1]")
-    
+
             self.beta = float(self.betaSchedule[0])
-    
+
             # The schedule gives beta values for states, so the number of transitions is len(schedule) - 1
             Niter = int(self.betaSchedule.size) - 1
             maxIter = Niter
@@ -309,7 +307,7 @@ class PTSampler(object):
 
         if self.resume:
             isave = thin
-        
+
         if isave % thin != 0:
             raise ValueError("isave = %d is not a multiple of thin =  %d" % (isave, thin))
 
@@ -331,7 +329,7 @@ class PTSampler(object):
         self.Niter = Niter
         self.neff = neff
         self.tstart = 0
-            
+
         N = int(maxIter / thin) + 1  # first sample + those we generate
 
         self._lnprob = np.zeros(N)
@@ -343,7 +341,8 @@ class PTSampler(object):
         self.swapProposed = 0
         self.nswap_accepted = 0
 
-        # Number of metaparameters written after the sampled parameters. Model switch output includes beta as its first metaparameter.
+        # Number of metaparameters written after the sampled parameters.
+        # Model switch output includes beta as its first metaparameter.
         self.n_metaparams = 9 if self.modelswitch else 4
 
         if self.modelswitch:
@@ -453,7 +452,7 @@ class PTSampler(object):
 
         # write hot chains
         self.writeHotChains = writeHotChains
-    
+
         self.resumeLength = 0
         if self.resume and os.path.isfile(self.fname):
             if self.verbose:
@@ -464,9 +463,7 @@ class PTSampler(object):
                 if self.resumechain.shape[1] != expected_cols:
                     current_mode = "model-switch" if self.modelswitch else "non-model-switch"
                     expected_format = (
-                        "parameters + 9 metaparameters"
-                        if self.modelswitch
-                        else "parameters + 4 metaparameters"
+                        "parameters + 9 metaparameters" if self.modelswitch else "parameters + 4 metaparameters"
                     )
                     raise Exception(
                         f"Cannot resume chain file {self.fname}: expected {expected_cols} columns "
@@ -477,7 +474,7 @@ class PTSampler(object):
             except ValueError as error:
                 print("Reading old chain files failed with error", error)
                 raise Exception("Couldn't read old chain to resume")
-            
+
             if self.betaSchedule is not None:
                 saved_betas = self.resumechain[:, self.ndim]
                 expected_betas = self.betaSchedule[:: self.thin]
@@ -584,9 +581,7 @@ class PTSampler(object):
                         percentnew = 100
                     else:
                         percentnew = (
-                            (iter - self.resumeLength * self.thin)
-                            / (self.Niter - self.resumeLength * self.thin)
-                            * 100
+                            (iter - self.resumeLength * self.thin) / (self.Niter - self.resumeLength * self.thin) * 100
                         )
                     sys.stdout.write(
                         "Finished %2.2f percent (%2.2f percent of new work) in %f s Acceptance rate = %g"
@@ -673,7 +668,7 @@ class PTSampler(object):
         @param nameChainTemps: Reverts to temperature naming convention of
         chains (default=False)
 
-        """       
+        """
 
         # set up arrays to store lnprob, lnlike and chain
         # if picking up from previous run, don't re-initialize
@@ -703,7 +698,7 @@ class PTSampler(object):
                 betaSchedule=betaSchedule,
                 holdIter=holdIter,
                 hotChain=hotChain,
-                nameChainTemps=nameChainTemps
+                nameChainTemps=nameChainTemps,
             )
 
         # compute lnprob for initial point in chain
@@ -743,7 +738,7 @@ class PTSampler(object):
                     lnprob0 = self.beta * lnlike0 + lp
 
             else:
-                
+
                 lp1 = self.logp1(p0)
                 lp2 = self.logp2(p0)
 
@@ -756,7 +751,7 @@ class PTSampler(object):
                     lnprob2 = -np.inf
 
                 else:
-                    lnlike1 = self.logl1(p0) 
+                    lnlike1 = self.logl1(p0)
                     lnprob1 = lnlike1 + lp1
 
                     lnlike2 = self.logl2(p0)
@@ -764,14 +759,15 @@ class PTSampler(object):
 
                     lnlike0 = lnprob1 - lnprob2  # Difference between the two model log posteriors
 
-                    lnprob0 = self.beta * (lnlike0) + lnprob2  
+                    lnprob0 = self.beta * (lnlike0) + lnprob2
 
         # Scheduled beta runs change the model switch target distribution each iteration
         if self.betaSchedule is not None:
             current_idx = i0
             if current_idx < 0 or current_idx >= len(self.betaSchedule):
                 raise IndexError(
-                    f"betaSchedule index out of range at initialization: idx={current_idx}, len={len(self.betaSchedule)}"
+                    "betaSchedule index out of range at initialization: "
+                    f"idx={current_idx}, len={len(self.betaSchedule)}"
                 )
 
             self.beta = float(self.betaSchedule[current_idx])
@@ -779,7 +775,7 @@ class PTSampler(object):
                 lnprob0 = -np.inf
             else:
                 lnprob0 = self.beta * lnlike0 + lnprob2
-        
+
         # record first values
         self.tstart = time.time()
 
@@ -802,7 +798,7 @@ class PTSampler(object):
 
         # start iterations
         iter = i0
-       
+
         runComplete = False
         while runComplete is False:
             iter += 1
@@ -917,21 +913,19 @@ class PTSampler(object):
 
             # randomize cycle
             self.randomizeProposalCycle()
-        
+
         # Scheduled beta runs change the model-switch target by state
         if self.betaSchedule is not None:
             idx = iter
             if idx < 0 or idx >= len(self.betaSchedule):
-                raise IndexError(
-                    f"betaSchedule index out of range: idx={idx}, len={len(self.betaSchedule)}"
-                )
+                raise IndexError(f"betaSchedule index out of range: idx={idx}, len={len(self.betaSchedule)}")
             self.beta = float(self.betaSchedule[idx])
 
             if (lnprob2 is None) or (not np.isfinite(lnprob2)) or (not np.isfinite(lnlike0)):
                 lnprob0 = -np.inf
             else:
                 lnprob0 = self.beta * lnlike0 + lnprob2
-        
+
         # jump proposal ###
 
         # if resuming, just use previous chain points. Use each one thin times to compensate for
@@ -984,7 +978,8 @@ class PTSampler(object):
                 lp1 = self.logp1(y)
                 lp2 = self.logp2(y)
 
-                # Set all model specific log values on invalid proposals so rejected jumps do not leave undefined variables
+                # Set all model specific log values on invalid proposals so
+                # rejected jumps do not leave undefined variables
                 if lp1 == -np.inf or lp2 == -np.inf:
                     newlnlike = -np.inf
                     newlnprob = -np.inf
@@ -1148,7 +1143,7 @@ class PTSampler(object):
             ladder = np.array([1.0])
 
         return ladder
-        
+
     def _writeToFile(self, iter):
         """
         Function to write chain file. Non-model-switch output has parameter
@@ -1172,18 +1167,14 @@ class PTSampler(object):
                 pt_acc = self.nswap_accepted / self.swapProposed
 
             # parameters always come first
-            self._chainfile.write(
-                "\t".join(["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)])
-            )
+            self._chainfile.write("\t".join(["%22.22f" % (self._chain[ind, kk]) for kk in range(self.ndim)]))
 
             # Model-switch output writes beta as the first metaparameter
             if self.modelswitch:
                 self._chainfile.write("\t%22.22f" % self._beta[ind])
-                
+
             # main posterior / likelihood for the active chain state
-            self._chainfile.write(
-                "\t%f\t%f" % (self._lnprob[ind], self._lnlike[ind])
-            )
+            self._chainfile.write("\t%f\t%f" % (self._lnprob[ind], self._lnlike[ind]))
 
             # extra model-switch diagnostics, if present
             if self.modelswitch:
@@ -1198,9 +1189,7 @@ class PTSampler(object):
                 )
 
             # acceptance metadata goes last
-            self._chainfile.write(
-                "\t%f\t%f\n" % (self.naccepted / iter if iter > 0 else 0, pt_acc)
-            )
+            self._chainfile.write("\t%f\t%f\n" % (self.naccepted / iter if iter > 0 else 0, pt_acc))
         self._chainfile.close()
         self.ind_next_write = write_end  # Ready for next write
 
